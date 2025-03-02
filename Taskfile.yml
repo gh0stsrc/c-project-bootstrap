@@ -67,7 +67,7 @@ tasks:
       unsafe: false
     cmds:
       - task: clean
-      - task: _compile # compile WITH debugging flag enabled, stack canaries disabled and enabled executable stack
+      - task: _compile # compile WITH debugging flag enabled, stack canaries disabled and executable stack enabled
         vars:
           GCC_FLAGS: "-g -fno-stack-protector -z execstack"
       - task: _link

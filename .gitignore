@@ -1,0 +1,8 @@
+.task/**
+.cache/**
+.local/**
+bin/**
+obj/**
+compile_commands.json
+test.txt
+valgrind.log

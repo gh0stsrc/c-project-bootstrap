@@ -1,0 +1,108 @@
+version: '3'
+
+vars:
+  srcDir:
+    sh: echo $(pwd)/src
+  objDir:
+    sh: echo $(pwd)/obj
+  includeDir:
+    sh: echo $(pwd)/include
+  binDir:
+    sh: echo $(pwd)/bin
+  executable:
+    sh: echo {{.binDir}}/$(basename $(pwd))
+
+tasks:
+
+  init:
+    desc: "Initialize project structure"
+    cmds:
+      - mkdir -p {{.srcDir}} {{.objDir}} {{.includeDir}} {{.binDir}}
+      - touch {{.srcDir}}/main.c
+
+  lsp:
+    desc: "Generate a `compile_commands.json` file to inform the Neovim lsp (e.g. clangd) of how code is compiled (required for linking & auto completion)"
+    sources:
+      - "**/*.c"
+    generates:
+      - "compile_commands.json"
+    preconditions:
+      - sh: which bear
+        msg: "Cannot build the `compile_commands.json` required for lsp functionality, Please install `bear` -> `sudo apt install bear`"
+    cmds:
+        # bear captures compiler commands and stores them in a standardized format to allow Neovim, lsps and other tooling to be able to understand how your code is structured
+      - |
+        bear -- gcc -I {{.includeDir}} -c $(ls **/*.c)
+      - rm -f *.o
+
+  clean:
+    desc: "Clean up all compiled and linked files (object files, elfs)"
+    cmds:
+      - rm -f {{.objDir}}/*.o
+      - rm -f $(pwd)/bin/*
+
+  _compile:
+      desc: "[INTERNAL] Compile project modules into intermediate object files (Not Yet Linked)"
+      preconditions:
+        - sh: which gcc
+          msg: "Compiler/Linker required, please install `gcc` to compile project -> `sudo apt install build-essentials`"
+      cmds:
+        # compile each .c file into an intermediate object file, note some builds will provide additional args via {{.GCC_FLAGS}}
+        - |
+          for cfile in src/*.c; do
+            # strip the .c extension and keep just the filename
+            base="$(basename "$cfile" .c)"
+            # create object file in objects directory
+            gcc {{.GCC_FLAGS}} -I {{.includeDir}} -c "$cfile" -o "{{.objDir}}/${base}.o"
+          done
+
+  _link:
+      desc: "[INTERNAL] Link intermediate object files and create a single excetuable (i.e. elf)"
+      cmds:
+        - gcc {{.objDir}}/*.o -o {{.executable}} {{.LINKER_FLAGS}}
+
+  build_unsafe:
+    desc: "UNSAFE BUILD, good for testing unsafe code (i.e. buffer overflows)"
+    vars:
+      unsafe: false
+    cmds:
+      - task: clean
+      - task: _compile # compile WITH debugging flag enabled, stack canaries disabled and enabled executable stack
+        vars:
+          GCC_FLAGS: "-g -fno-stack-protector -z execstack"
+      - task: _link
+
+  build_local:
+    desc: "Test Build: link all compiled intermediate object files WITH debugging flags and features enabled"
+    cmds:
+      - task: clean
+      - task: _compile # compile WITH debugging flag, upgrading warnings to errors, and memory sanitization enabled
+        vars:
+          GCC_FLAGS: "-g -Wall -Werror -fsanitize=address"
+      - task: _link
+        vars: 
+          LINKER_FLAGS: "-fsanitize=address -static-libasan"
+
+  build:
+    desc: "Prod Build: link all compiled intermediate object files WITHOUT any debugging flags or features enabled"
+    cmds:
+      - task: clean
+      - task: _compile # compile WITHOUT debugging flags
+      - task: _link
+
+  memtest:
+    desc: "Memory test compiled and linked executable"
+    vars:
+      args: "test.txt"
+      logfile: "valgrind.log"
+    preconditions:
+      - sh: which valgrind
+        msg: "Cannot perform memory tests without `valgrind`, Please install `valgrind` -> `sudo apt install valgrind`"
+    cmds:
+      - |
+        valgrind --leak-check=full \
+          --show-leak-kinds=all \
+          --track-origins=yes \
+          --log-file={{.logfile}} \
+          {{.executable}} {{.args}}
+      - echo "Valgrind output has been saved to {{.logfile}}"

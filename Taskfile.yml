@@ -82,6 +82,8 @@ tasks:
         vars:
           GCC_FLAGS: "-g -m32 -fno-stack-protector -O0 -z execstack"
       - task: _link
+        vars: 
+          LINKER_FLAGS: "-m32"
 
   build_local:
     desc: "Test Build: link all compiled intermediate object files WITH debugging flags and features enabled"

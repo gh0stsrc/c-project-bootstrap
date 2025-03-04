@@ -72,6 +72,17 @@ tasks:
           GCC_FLAGS: "-g -fno-stack-protector -z execstack"
       - task: _link
 
+  build_unsafe32:
+    desc: "UNSAFE BUILD 32-bit, good for testing unsafe code (i.e. buffer overflows)"
+    vars:
+      unsafe: false
+    cmds:
+      - task: clean
+      - task: _compile # compile WITH debugging flag enabled, stack canaries disabled, executable stack enabled, optimizations disabled and compile as 32-bit
+        vars:
+          GCC_FLAGS: "-g -m32 -fno-stack-protector -O0 -z execstack"
+      - task: _link
+
   build_local:
     desc: "Test Build: link all compiled intermediate object files WITH debugging flags and features enabled"
     cmds:

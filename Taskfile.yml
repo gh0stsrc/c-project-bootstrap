@@ -80,10 +80,10 @@ tasks:
       - task: clean
       - task: _compile # compile WITH debugging flag enabled, stack canaries disabled, executable stack enabled, optimizations disabled and compile as 32-bit
         vars:
-          GCC_FLAGS: "-g -m32 -fno-stack-protector -O0 -z execstack"
+          GCC_FLAGS: "-g -m32 -no-pie -fno-stack-protector -O0 -z execstack"
       - task: _link
         vars: 
-          LINKER_FLAGS: "-m32"
+          LINKER_FLAGS: "-m32 -no-pie"
 
   build_local:
     desc: "Test Build: link all compiled intermediate object files WITH debugging flags and features enabled"
